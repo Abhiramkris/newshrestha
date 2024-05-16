@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Conference</title>
+<style>
+  #localVideo, #remoteVideo {
+    width: 320px;
+    height: 240px;
+    margin-bottom: 10px;
+    border: 1px solid black;
+  }
+</style>
+</head>
+<body>
+  <h2>Video Conference</h2>
+  <div>
+    <video id="localVideo" autoplay muted></video>
+    <video id="remoteVideo" autoplay></video>
+  </div>
+  <div>
+    <button id="startButton">Start Video</button>
+    <button id="stopButton">Stop Video</button>
+  </div>
+
+  <script>
+    let localStream;
+    let remoteStream;
+    let localVideo = document.getElementById("localVideo");
+    let remoteVideo = document.getElementById("remoteVideo");
+
+    // Set up media devices
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        localStream = stream;
+        localVideo.srcObject = stream;
+      })
+      .catch(error => {
+        console.error("Error accessing media devices:", error);
+      });
+
+    // Function to start video conference
+    function startVideo() {
+      let configuration = { iceServers: [{ urls: "stun:stun.example.org" }] }; // Use your STUN/TURN server here
+
+      let peerConnection = new RTCPeerConnection(configuration);
+      peerConnection.addEventListener("track", event => {
+        remoteVideo.srcObject = event.streams[0];
+      });
+
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      peerConnection.createOffer()
+        .then(offer => peerConnection.setLocalDescription(offer))
+        .then(() => {
+          // Send offer to the other peer
+        })
+        .catch(error => {
+          console.error("Error creating offer:", error);
+        });
+    }
+
+    // Function to stop video conference
+    function stopVideo() {
+      localStream.getTracks().forEach(track => {
+        track.stop();
+      });
+      localStream = null;
+      localVideo.srcObject = null;
+      remoteVideo.srcObject = null;
+    }
+
+    document.getElementById("startButton").addEventListener("click", startVideo);
+    document.getElementById("stopButton").addEventListener("click", stopVideo);
+  </script>
+</body>
+</html>
