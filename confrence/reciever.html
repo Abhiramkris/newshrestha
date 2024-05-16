@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Conference</title>
+  <style>
+    video {
+      width: 50%;
+      border: 1px solid black;
+    }
+  </style>
+</head>
+<body>
+  <h1>Video Conference</h1>
+
+  <h2>Local Video</h2>
+  <video id="localVideo" autoplay muted></video>
+
+  <h2>Remote Video</h2>
+  <video id="remoteVideo" autoplay></video>
+
+  <script>
+    const constraints = {
+      video: true,
+      audio: true
+    };
+
+// Receiver (Answerer) Code
+
+// Set up WebRTC peer connection
+const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const receiverPeerConnection = new RTCPeerConnection(configuration);
+
+// Event listener for receiving ICE candidates from the remote peer
+receiverPeerConnection.onicecandidate = function(event) {
+    if (event.candidate) {
+        // Send ICE candidates to the sender (offerer) through signaling server
+        sendIceCandidateToSender(event.candidate);
+    }
+};
+
+// Event listener for receiving remote stream
+receiverPeerConnection.ontrack = function(event) {
+    // Handle remote stream
+    const remoteVideo = document.getElementById('remoteVideo');
+    remoteVideo.srcObject = event.streams[0];
+};
+
+// Function to receive offer from the sender (offerer)
+function receiveOfferFromSender(offer) {
+    // Set the received offer as the remote description
+    receiverPeerConnection.setRemoteDescription(offer)
+        .then(function() {
+            console.log('Offer received and set as remote description.');
+            // Create answer and send it back to the sender
+            receiverPeerConnection.createAnswer()
+                .then(function(answer) {
+                    return receiverPeerConnection.setLocalDescription(answer);
+                })
+                .then(function() {
+                    // Answer is set as the local description, send it back to the sender
+                    console.log('Sending answer:', receiverPeerConnection.localDescription);
+                    // Send the answer back to the sender through signaling mechanism
+                    sendAnswerToSender(receiverPeerConnection.localDescription);
+                })
+                .catch(function(err) {
+                    console.error('Error creating or setting local description:', err);
+                });
+        })
+        .catch(function(err) {
+            console.error('Error setting remote description:', err);
+        });
+}
+
+// Function to receive ICE candidates from the sender (offerer)
+function receiveIceCandidateFromSender(candidate) {
+    // Add the received ICE candidate to the peer connection
+    receiverPeerConnection.addIceCandidate(candidate)
+        .then(function() {
+            console.log('ICE candidate received and added:', candidate);
+        })
+        .catch(function(err) {
+            console.error('Error adding ICE candidate:', err);
+        });
+}
+
+  </script>
+</body>
+</html>

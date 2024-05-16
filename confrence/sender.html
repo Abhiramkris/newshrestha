@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Conference</title>
+  <style>
+    video {
+      width: 50%;
+      border: 1px solid black;
+    }
+  </style>
+</head>
+<body>
+  <h1>Video Conference</h1>
+
+  <h2>Local Video</h2>
+  <video id="localVideo" autoplay muted></video>
+
+  <h2>Remote Video</h2>
+  <video id="remoteVideo" autoplay></video>
+
+  <script>
+    const constraints = {
+      video: true,
+      audio: true
+    };
+
+// Set up WebRTC peer connection
+const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const senderPeerConnection = new RTCPeerConnection(configuration);
+
+// Add local stream to peer connection (assuming localStream is already obtained)
+localStream.getTracks().forEach(track => senderPeerConnection.addTrack(track, localStream));
+
+
+senderPeerConnection.onicecandidate = function(event) {
+    if (event.candidate) {
+        // Send ICE candidates to the remote peer through signaling server
+        sendIceCandidateToRemotePeer(event.candidate);
+    }
+};
+
+// Event listener for receiving remote stream
+senderPeerConnection.ontrack = function(event) {
+
+    const remoteVideo = document.getElementById('remoteVideo');
+    remoteVideo.srcObject = event.streams[0];
+};
+
+// Function to send offer to the remote peer
+function sendOfferToRemotePeer(offer) {
+  
+}
+
+senderPeerConnection.createOffer()
+    .then(function(offer) {
+        return senderPeerConnection.setLocalDescription(offer);
+    })
+    .then(function() {
+        // Offer is set as the local description, send it to the other peer through signaling
+        console.log('Sending offer:', senderPeerConnection.localDescription);
+        // Send the offer to the remote peer through signaling mechanism
+        sendOfferToRemotePeer(senderPeerConnection.localDescription);
+    })
+    .catch(function(err) {
+        console.error('Error creating or setting local description:', err);
+    });
+
+  </script>
+</body>
+</html>
