@@ -58,6 +58,17 @@
             console.error('Error creating or setting local description:', err);
           });
       })
+
+      function receiveAnswerFromRemotePeer(answer) {
+      // Set the received answer as the remote description
+      peerConnection.setRemoteDescription(answer)
+        .then(function() {
+          console.log('Remote description set successfully.');
+        })
+        .catch(function(err) {
+          console.error('Error setting remote description:', err);
+        });
+    }
     //   .catch(function(err) {
     //     console.error('Error accessing media devices.', err);
     //   });
