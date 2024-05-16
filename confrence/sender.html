@@ -26,21 +26,29 @@
       audio: true
     };
 
-// Set up WebRTC peer connection
-const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-const senderPeerConnection = new RTCPeerConnection(configuration);
+    // Get local video stream
+    navigator.mediaDevices.getUserMedia(constraints)
+      .then(function(stream) {
+        const localVideo = document.getElementById('localVideo');
+        localVideo.srcObject = stream;
+      })
+      .catch(function(err) {
+        console.error('Error accessing media devices.', err);
+      });
 
-// Add local stream to peer connection (assuming localStream is already obtained)
-localStream.getTracks().forEach(track => senderPeerConnection.addTrack(track, localStream));
+    // Set up WebRTC peer connection
+    const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let peerConnection = new RTCPeerConnection(configuration);
 
+    // Add local stream to peer connection
+    const localStream = document.getElementById('localVideo').srcObject;
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-senderPeerConnection.onicecandidate = function(event) {
-    if (event.candidate) {
-        // Send ICE candidates to the remote peer through signaling server
-        sendIceCandidateToRemotePeer(event.candidate);
-    }
-};
-
+    // Set up remote video stream
+    peerConnection.ontrack = function(event) {
+      const remoteVideo = document.getElementById('remoteVideo');
+      remoteVideo.srcObject = event.streams[0];
+    };
 // Event listener for receiving remote stream
 senderPeerConnection.ontrack = function(event) {
 

@@ -21,24 +21,34 @@
   <video id="remoteVideo" autoplay></video>
 
   <script>
-    const constraints = {
+   const constraints = {
       video: true,
       audio: true
     };
 
-// Receiver (Answerer) Code
+    // Get local video stream
+    navigator.mediaDevices.getUserMedia(constraints)
+      .then(function(stream) {
+        const localVideo = document.getElementById('localVideo');
+        localVideo.srcObject = stream;
+      })
+      .catch(function(err) {
+        console.error('Error accessing media devices.', err);
+      });
 
-// Set up WebRTC peer connection
-const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-const receiverPeerConnection = new RTCPeerConnection(configuration);
+    // Set up WebRTC peer connection
+    const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let peerConnection = new RTCPeerConnection(configuration);
 
-// Event listener for receiving ICE candidates from the remote peer
-receiverPeerConnection.onicecandidate = function(event) {
-    if (event.candidate) {
-        // Send ICE candidates to the sender (offerer) through signaling server
-        sendIceCandidateToSender(event.candidate);
-    }
-};
+    // Add local stream to peer connection
+    const localStream = document.getElementById('localVideo').srcObject;
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+    // Set up remote video stream
+    peerConnection.ontrack = function(event) {
+      const remoteVideo = document.getElementById('remoteVideo');
+      remoteVideo.srcObject = event.streams[0];
+    };
 
 // Event listener for receiving remote stream
 receiverPeerConnection.ontrack = function(event) {
