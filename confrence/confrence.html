@@ -21,6 +21,12 @@
   <video id="remoteVideo" autoplay></video>
 
   <script>
+    const constraints = {
+      video: true,
+      audio: true
+    };
+
+    // Get local video stream
     navigator.mediaDevices.getUserMedia(constraints)
       .then(function(stream) {
         const localVideo = document.getElementById('localVideo');
@@ -39,41 +45,22 @@
           remoteVideo.srcObject = event.streams[0];
         };
 
-
+        // Create and send offer to start the call
         peerConnection.createOffer()
           .then(function(offer) {
             return peerConnection.setLocalDescription(offer);
           })
           .then(function() {
-  
+            // Offer is set as the local description, send it to the other peer
             console.log('Sending offer:', peerConnection.localDescription);
-            // Send the offer to the remote peer through signaling mechanism
-            sendOfferToRemotePeer(peerConnection.localDescription);
           })
           .catch(function(err) {
             console.error('Error creating or setting local description:', err);
           });
       })
-      .catch(function(err) {
-        console.error('Error accessing media devices.', err);
-      });
-
- 
-    function sendOfferToRemotePeer(offer) {
-     
-    }
-
-  
-    function receiveAnswerFromRemotePeer(answer) {
-
-      peerConnection.setRemoteDescription(answer)
-        .then(function() {
-          console.log('Remote description set successfully.');
-        })
-        .catch(function(err) {
-          console.error('Error setting remote description:', err);
-        });
-    }
+    //   .catch(function(err) {
+    //     console.error('Error accessing media devices.', err);
+    //   });
   </script>
 </body>
 </html>
