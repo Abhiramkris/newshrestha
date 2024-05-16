@@ -1,80 +1,164 @@
-<!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Video Conference</title>
-  <style>
-    video {
-      width: 50%;
-      border: 1px solid black;
-    }
-  </style>
+    <title>Delta Meet</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
 </head>
+
 <body>
-  <h1>Video Conference</h1>
+    <h1 class="title">Delta Meet</h1>
+    <p id="notification" hidden></p>
+    <div class="entry-modal" id="entry-modal">
+        <p>Create or Join Meeting</p>
+        <input id="room-input" class="room-input" placeholder="Enter Room ID">
+        <div>
+            <button onclick="createRoom()">Create Room</button>
+            <button onclick="joinRoom()">Join Room</button>
+        </div>
+    </div>
+    <div class="meet-area">
+        <!-- Remote Video Element-->
+        <video id="remote-video"></video>
 
-  <h2>Local Video</h2>
-  <video id="localVideo" autoplay muted></video>
+        <!-- Local Video Element-->
+        <video id="local-video"></video>
+        <div class="meet-controls-bar">
+            <button onclick="startScreenShare()">Screen Share</button>
+        </div>
+    </div>
+</body>
 
-  <h2>Remote Video</h2>
-  <video id="remoteVideo" autoplay></video>
+<script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+<script>
 
-  <script>
-    const constraints = {
-      video: true,
-      audio: true
-    };
-
-    // Get local video stream
-    navigator.mediaDevices.getUserMedia(constraints)
-      .then(function(stream) {
-        const localVideo = document.getElementById('localVideo');
-        localVideo.srcObject = stream;
-      })
-      .catch(function(err) {
-        console.error('Error accessing media devices.', err);
-      });
-
-    // Set up WebRTC peer connection
-    const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-    let peerConnection = new RTCPeerConnection(configuration);
-
-    // Add local stream to peer connection
-    const localStream = document.getElementById('localVideo').srcObject;
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-    // Set up remote video stream
-    peerConnection.ontrack = function(event) {
-      const remoteVideo = document.getElementById('remoteVideo');
-      remoteVideo.srcObject = event.streams[0];
-    };
-// Event listener for receiving remote stream
-senderPeerConnection.ontrack = function(event) {
-
-    const remoteVideo = document.getElementById('remoteVideo');
-    remoteVideo.srcObject = event.streams[0];
-};
-
-// Function to send offer to the remote peer
-function sendOfferToRemotePeer(offer) {
-  
+const PRE = "DELTA"
+const SUF = "MEET"
+var room_id;
+var getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+var local_stream;
+var screenStream;
+var peer = null;
+var currentPeer = null
+var screenSharing = false
+function createRoom() {
+    console.log("Creating Room")
+    let room = document.getElementById("room-input").value;
+    if (room == " " || room == "") {
+        alert("Please enter room number")
+        return;
+    }
+    room_id = PRE + room + SUF;
+    peer = new Peer(room_id)
+    peer.on('open', (id) => {
+        console.log("Peer Connected with ID: ", id)
+        hideModal()
+        getUserMedia({ video: true, audio: true }, (stream) => {
+            local_stream = stream;
+            setLocalStream(local_stream)
+        }, (err) => {
+            console.log(err)
+        })
+        notify("Waiting for peer to join.")
+    })
+    peer.on('call', (call) => {
+        call.answer(local_stream);
+        call.on('stream', (stream) => {
+            setRemoteStream(stream)
+        })
+        currentPeer = call;
+    })
 }
 
-senderPeerConnection.createOffer()
-    .then(function(offer) {
-        return senderPeerConnection.setLocalDescription(offer);
-    })
-    .then(function() {
-        // Offer is set as the local description, send it to the other peer through signaling
-        console.log('Sending offer:', senderPeerConnection.localDescription);
-        // Send the offer to the remote peer through signaling mechanism
-        sendOfferToRemotePeer(senderPeerConnection.localDescription);
-    })
-    .catch(function(err) {
-        console.error('Error creating or setting local description:', err);
-    });
+function setLocalStream(stream) {
 
-  </script>
-</body>
-</html>
+    let video = document.getElementById("local-video");
+    video.srcObject = stream;
+    video.muted = true;
+    video.play();
+}
+function setRemoteStream(stream) {
+
+    let video = document.getElementById("remote-video");
+    video.srcObject = stream;
+    video.play();
+}
+
+function hideModal() {
+    document.getElementById("entry-modal").hidden = true
+}
+
+function notify(msg) {
+    let notification = document.getElementById("notification")
+    notification.innerHTML = msg
+    notification.hidden = false
+    setTimeout(() => {
+        notification.hidden = true;
+    }, 3000)
+}
+
+function joinRoom() {
+    console.log("Joining Room")
+    let room = document.getElementById("room-input").value;
+    if (room == " " || room == "") {
+        alert("Please enter room number")
+        return;
+    }
+    room_id = PRE + room + SUF;
+    hideModal()
+    peer = new Peer()
+    peer.on('open', (id) => {
+        console.log("Connected with Id: " + id)
+        getUserMedia({ video: true, audio: true }, (stream) => {
+            local_stream = stream;
+            setLocalStream(local_stream)
+            notify("Joining peer")
+            let call = peer.call(room_id, stream)
+            call.on('stream', (stream) => {
+                setRemoteStream(stream);
+            })
+            currentPeer = call;
+        }, (err) => {
+            console.log(err)
+        })
+
+    })
+}
+
+function startScreenShare() {
+    if (screenSharing) {
+        stopScreenSharing()
+    }
+    navigator.mediaDevices.getDisplayMedia({ video: true }).then((stream) => {
+        screenStream = stream;
+        let videoTrack = screenStream.getVideoTracks()[0];
+        videoTrack.onended = () => {
+            stopScreenSharing()
+        }
+        if (peer) {
+            let sender = currentPeer.peerConnection.getSenders().find(function (s) {
+                return s.track.kind == videoTrack.kind;
+            })
+            sender.replaceTrack(videoTrack)
+            screenSharing = true
+        }
+        console.log(screenStream)
+    })
+}
+
+function stopScreenSharing() {
+    if (!screenSharing) return;
+    let videoTrack = local_stream.getVideoTracks()[0];
+    if (peer) {
+        let sender = currentPeer.peerConnection.getSenders().find(function (s) {
+            return s.track.kind == videoTrack.kind;
+        })
+        sender.replaceTrack(videoTrack)
+    }
+    screenStream.getTracks().forEach(function (track) {
+        track.stop();
+    });
+    screenSharing = false
+}
+</script>
+
+</html> 
